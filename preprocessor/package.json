@@ -1,0 +1,26 @@
+{
+  "name": "thighsdatas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "rescale:thighs": "node ./grayscaleAndRescale.js",
+    "rescale:notThighs": "NOT_THIGHS=true node ./grayscaleAndRescale.js",
+    "rescale": "concurrently --kill-others \"npm run rescale:thighs\" \"npm run rescale:notThighs\"",
+    "export:train": "node ./exportValues.js",
+    "export:validator": "VALIDATOR=true node ./exportValues.js",
+    "export": "concurrently --kill-others \"npm run export:train\" \"npm run export:validator\"",
+    "all": "npm run rescale && npm run export"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "canvas": "^2.8.0",
+    "sharp": "^0.28.3"
+  },
+  "devDependencies": {
+    "concurrently": "^6.2.0"
+  }
+}

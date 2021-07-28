@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thighs Classifier</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.8.0/dist/tf.min.js" integrity="sha256-B72Do2A4yC67Y3aXueG3wQXWYjtr5RlI1D2jYDJJYsw=" crossorigin="anonymous"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js" integrity="sha256-qp+MJqHjqWN5L09l6gTFvHhfPvHZAB+c61vy1dOrKs4=" crossorigin="anonymous"></script> -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <div>
+      <h1 id="predict">-</h1>
+      <p>Confidence: <span id="confidence">-</span></p>
+    </div>
+  
+    <div>
+      <img id="preview" src="" />
+      <input id="input" accept="image/*" type='file' />
+    </div>
+  </main>
+
+  <div id="debug"></div>
+
+  <script src="./index.js"></script>
+</body>
+</html>
