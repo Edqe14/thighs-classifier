@@ -1,171 +1,100 @@
-const tf = require('@tensorflow/tfjs-node-gpu');
-const fs = require('fs/promises');
-const path = require('path');
+/* eslint-disable no-undef */
+const input = document.getElementById('input');
+const preview = document.getElementById('preview');
+const prediction = document.getElementById('predict');
+const confidence = document.getElementById('confidence');
+const debugImages = document.getElementById('debug');
 
-const loadData = async (validation = false) => {
-  console.log(`Loading ${validation ? 'validation' : 'training'} data...`);
+const debug = true;
 
-  const dir = path.join(__dirname, 'data', validation ? 'validate' : 'train');
-  const files = await fs
-    .readdir(dir)
-    .then((d) => d.filter((f) => f.split('.').pop() === 'json'));
+const loadModel = async () => {
+  const model = await tf.loadLayersModel('/model/model.json');
+  return model;
+};
 
-  const datas = [];
-  const labels = [];
+const draw = (image, gap, height) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
 
-  let count = 0;
-  for (const file of files) {
-    count++;
-    const data = require(path.join(dir, file));
-    data.forEach((i) => {
-      labels.push(i.pop()[0]);
-      datas.push(i);
-    });
+  const ctx = canvas.getContext('2d');
 
-    console.log(
-      `Loaded from "${file}" | ${((count / files.length) * 100).toFixed()}%`
-    );
+  ctx.drawImage(image, 0, gap * -1, canvas.width, height + gap + 2);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const data = [];
+  for (let y = 0; y < canvas.height; y++) {
+    const row = [];
+    for (let x = 0; x < canvas.width; x++) {
+      const index = x * 4 * canvas.width + y * 4;
+
+      const red = imageData.data[index];
+      const green = imageData.data[index + 1];
+      const blue = imageData.data[index + 2];
+
+      const average = (red + green + blue) / 3;
+
+      imageData.data[index] = average;
+      imageData.data[index + 1] = average;
+      imageData.data[index + 2] = average;
+      ctx.putImageData(imageData, 0, 0);
+
+      row.push(average / 255);
+    }
+
+    data.push(row);
   }
 
-  return [
-    tf.stack(datas.map((t) => tf.reshape(t, [256, 256, 1]))),
-    tf.tensor1d(labels, 'int32'),
-  ];
+  if (debug) debugImages.appendChild(canvas);
+  return data;
 };
 
-const createModel = () => {
-  const cnn = tf.sequential();
+const processImage = async (obj, model) => {
+  // Debug
+  if (debug) debugImages.innerHTML = '';
 
-  // Layers
-  cnn.add(
-    tf.layers.conv2d({
-      inputShape: [256, 256, 1],
-      kernelSize: 5,
-      filters: 8,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling',
-    })
-  );
+  const image = new Image();
 
-  cnn.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
+  image.addEventListener('load', async () => {
+    const rescaledHeight = (256 / image.width) * image.height;
+    const gap = rescaledHeight - 256;
 
-  cnn.add(
-    tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 16,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling',
-    })
-  );
+    const data1 = draw(
+      image,
+      gap,
+      rescaledHeight + (256 - rescaledHeight + rescaledHeight * 0.074)
+    );
+    const data2 = draw(image, gap, rescaledHeight + (256 - rescaledHeight));
 
-  cnn.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
+    const predict1 = model.predict(tf.reshape(data1, [1, 256, 256, 1]));
+    const predict2 = model.predict(tf.reshape(data2, [1, 256, 256, 1]));
+    const [conf1, conf2] = await Promise.all([
+      predict1.data(),
+      predict2.data(),
+    ]);
 
-  cnn.add(
-    tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 32,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling',
-    })
-  );
-
-  cnn.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
-
-  cnn.add(
-    tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 32,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling',
-    })
-  );
-
-  cnn.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
-
-  cnn.add(
-    tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 16,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling',
-    })
-  );
-
-  cnn.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
-
-  cnn.add(tf.layers.flatten());
-
-  cnn.add(
-    tf.layers.dense({
-      units: 1,
-      activation: 'sigmoid',
-    })
-  );
-
-  // Compile
-  cnn.compile({
-    optimizer: tf.train.sgd(0.2),
-    loss: 'meanSquaredError',
-    metrics: ['accuracy'],
+    const conf = Math.max(conf1, conf2);
+    const guess = conf <= 0.5 ? 'Not Thighs' : 'Thighs';
+    prediction.innerHTML = guess;
+    confidence.innerHTML = conf.toFixed(2);
   });
 
-  return cnn;
+  image.src = URL.createObjectURL(obj);
 };
 
-const trainModel = async (model, epochs = 20) => {
-  const batchSize = 32;
+(async () => {
+  const model = await loadModel();
 
-  const [trainX, trainY] = await loadData();
-  const [valX, valY] = await loadData(true);
+  const handleChange = () => {
+    const [file] = input.files;
+    if (file) {
+      const url = URL.createObjectURL(file);
+      preview.src = url;
 
-  return await model.fit(trainX, trainY, {
-    batchSize,
-    epochs,
-    shuffle: true,
-    validationData: [valX, valY],
-    callbacks: {
-      onTrainBegin() {
-        console.log('-- Begin training --');
-      },
-      onTrainEnd() {
-        console.log('-- Finished training --');
-      },
-    },
-  });
-};
+      processImage(file, model);
+    }
+  };
 
-const saveModel = async (model) => {
-  // Save model
-  await model.save(
-    'file:///Projects/Github/thighs-classifier/server/public/model'
-  );
-
-  console.log('Saved model');
-};
-
-const main = async () => {
-  const model = createModel();
-
-  process.once('SIGINT', async () => {
-    model.stopTraining = true;
-    await saveModel(model);
-
-    process.exit(0);
-  });
-
-  const history = await trainModel(model, 150);
-  fs.writeFile(
-    path.join(__dirname, 'server', 'public', 'model', 'history.json'),
-    JSON.stringify(history)
-  );
-
-  await saveModel(model);
-  process.exit(0);
-};
-
-main();
+  input.addEventListener('change', handleChange);
+})();
