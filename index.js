@@ -8,7 +8,7 @@ const debugImages = document.getElementById('debug');
 const debug = true;
 
 const loadModel = async () => {
-  const model = await tf.loadLayersModel('/model/model.json');
+  const model = await tf.loadLayersModel('./model/model.json');
   return model;
 };
 
