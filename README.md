@@ -5,4 +5,6 @@ trained using 800 images of anime girl thighs
 
 dont ask
 
+*well this still works... right...?*
+
 [Dataset](https://drive.google.com/file/d/1jtRxNHK3aaeyVumNkXzb7_c93MfgQWsc/view?usp=sharing)
